@@ -1,5 +1,7 @@
 package de.schildbach.pte.provider.motis;
 
+import androidx.annotation.NonNull;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -46,6 +48,7 @@ import de.schildbach.pte.dto.Trip;
 import de.schildbach.pte.dto.TripOptions;
 import de.schildbach.pte.exception.InternalErrorException;
 import de.schildbach.pte.provider.AbstractNetworkProvider;
+import de.schildbach.pte.util.PolylineFormat;
 import okhttp3.HttpUrl;
 
 public abstract class AbstractMotisProvider extends AbstractNetworkProvider {
@@ -343,8 +346,15 @@ public abstract class AbstractMotisProvider extends AbstractNetworkProvider {
         final PTDate departureTime = dateFromString(legFrom.getString("departure"), null);
         final PTDate arrivalTime = dateFromString(legTo.getString("arrival"), null);
 
-        // todo: parse legGeometry
-        return new Trip.Individual(tripType, fromLocation, departureTime, toLocation, arrivalTime, null, distance);
+        final List<Point> path = parseLegGeometry(leg.getJSONObject("legGeometry"));
+        return new Trip.Individual(tripType, fromLocation, departureTime, toLocation, arrivalTime, path, distance);
+    }
+
+    @NonNull
+    private static List<Point> parseLegGeometry(final JSONObject legGeometry) throws JSONException {
+        final String points = legGeometry.getString("points");
+        final int precision = legGeometry.getInt("precision");
+        return PolylineFormat.decode(points, precision);
     }
 
     private Stop parseStop(final JSONObject stop, final boolean realTime) throws JSONException {
@@ -375,9 +385,16 @@ public abstract class AbstractMotisProvider extends AbstractNetworkProvider {
         final Line line = parseLine(leg);
 
         final Location destination = new Location(LocationType.STATION, null, null, leg.getString("headsign"));
-
-        return new Trip.Public(line, destination, parseStop(leg.getJSONObject("from"), realTime), parseStop(leg.getJSONObject("to"), realTime), stops, null, // todo: parse legGeometry
-                "tripId: " + leg.optString("tripId"));
+        final List<Point> path = parseLegGeometry(leg.getJSONObject("legGeometry"));
+        return new Trip.Public(
+                line,
+                destination,
+                parseStop(leg.getJSONObject("from"), realTime),
+                parseStop(leg.getJSONObject("to"), realTime),
+                stops,
+                path,
+                "tripId: " + leg.optString("tripId")
+        );
     }
 
     @Nonnull

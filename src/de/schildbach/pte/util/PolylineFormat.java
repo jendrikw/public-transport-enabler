@@ -33,6 +33,12 @@ import de.schildbach.pte.dto.Point;
  */
 public final class PolylineFormat {
     public static List<Point> decode(final String encodedPolyline) {
+        return decode(encodedPolyline, 5);
+    }
+
+    public static List<Point> decode(final String encodedPolyline, final int precision) {
+        final double factor = Math.pow(10, precision);
+
         final int len = encodedPolyline.length();
         final List<Point> path = new ArrayList<>(len / 2);
 
@@ -60,7 +66,7 @@ public final class PolylineFormat {
             } while (lonB >= 0x1f);
             lon += (lonResult & 1) != 0 ? ~(lonResult >> 1) : (lonResult >> 1);
 
-            path.add(Point.from1E5(lat, lon));
+            path.add(Point.fromDouble(lat / factor, lon / factor));
         }
         return path;
     }
